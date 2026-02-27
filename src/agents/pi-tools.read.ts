@@ -8,6 +8,7 @@ import type { ImageSanitizationLimits } from "./image-sanitization.js";
 import type { AnyAgentTool } from "./pi-tools.types.js";
 import { assertSandboxPath } from "./sandbox-paths.js";
 import type { SandboxFsBridge } from "./sandbox/fs-bridge.js";
+import { assertNotProtectedPath } from "./tool-fs-policy.js";
 import { sanitizeToolResultImages } from "./tool-images.js";
 
 // NOTE(steipete): Upstream read now does file-magic MIME detection; we keep the wrapper
@@ -628,6 +629,40 @@ export function wrapToolWorkspaceRootGuardWithOptions(
           containerWorkdir: options?.containerWorkdir,
         });
         await assertSandboxPath({ filePath: sandboxPath, cwd: root, root });
+      }
+      return tool.execute(toolCallId, normalized ?? args, signal, onUpdate);
+    },
+  };
+}
+
+/**
+ * Wraps a write/edit tool to reject operations on protected paths.
+ * The guard resolves the target file path relative to the workspace root
+ * and checks it against the configured protectedPaths list.
+ */
+export function wrapToolProtectedPathGuard(
+  tool: AnyAgentTool,
+  root: string,
+  protectedPaths: string[],
+): AnyAgentTool {
+  if (protectedPaths.length === 0) {
+    return tool;
+  }
+  return {
+    ...tool,
+    execute: async (toolCallId, args, signal, onUpdate) => {
+      const normalized = normalizeToolParams(args);
+      const record =
+        normalized ??
+        (args && typeof args === "object" ? (args as Record<string, unknown>) : undefined);
+      const filePath = record?.path ?? record?.file_path;
+      if (typeof filePath === "string" && filePath.trim()) {
+        const resolved = path.resolve(root, filePath.trim());
+        const relative = path.relative(root, resolved);
+        // Only check paths within the workspace root (no leading "..")
+        if (!relative.startsWith("..")) {
+          assertNotProtectedPath(relative, protectedPaths);
+        }
       }
       return tool.execute(toolCallId, normalized ?? args, signal, onUpdate);
     },

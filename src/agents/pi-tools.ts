@@ -41,6 +41,7 @@ import {
   createSandboxedWriteTool,
   normalizeToolParams,
   patchToolSchemaForClaudeCompatibility,
+  wrapToolProtectedPathGuard,
   wrapToolWorkspaceRootGuard,
   wrapToolWorkspaceRootGuardWithOptions,
   wrapToolParamNormalization,
@@ -309,6 +310,7 @@ export function createOpenClawCodingTools(options?: {
   const fsConfig = resolveToolFsConfig({ cfg: options?.config, agentId });
   const fsPolicy = createToolFsPolicy({
     workspaceOnly: fsConfig.workspaceOnly,
+    protectedPaths: fsConfig.protectedPaths,
   });
   const sandboxRoot = sandbox?.workspaceDir;
   const sandboxFsBridge = sandbox?.fsBridge;
@@ -369,7 +371,12 @@ export function createOpenClawCodingTools(options?: {
         createWriteTool(workspaceRoot),
         CLAUDE_PARAM_GROUPS.write,
       );
-      return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
+      const guarded = workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped;
+      return [
+        fsPolicy.protectedPaths.length > 0
+          ? wrapToolProtectedPathGuard(guarded, workspaceRoot, fsPolicy.protectedPaths)
+          : guarded,
+      ];
     }
     if (tool.name === "edit") {
       if (sandboxRoot) {
@@ -380,7 +387,12 @@ export function createOpenClawCodingTools(options?: {
         createEditTool(workspaceRoot),
         CLAUDE_PARAM_GROUPS.edit,
       );
-      return [workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped];
+      const guarded = workspaceOnly ? wrapToolWorkspaceRootGuard(wrapped, workspaceRoot) : wrapped;
+      return [
+        fsPolicy.protectedPaths.length > 0
+          ? wrapToolProtectedPathGuard(guarded, workspaceRoot, fsPolicy.protectedPaths)
+          : guarded,
+      ];
     }
     return [tool];
   });

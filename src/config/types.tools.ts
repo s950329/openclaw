@@ -269,6 +269,13 @@ export type FsToolsConfig = {
    * Default: false (unrestricted, matches legacy behavior).
    */
   workspaceOnly?: boolean;
+  /**
+   * Paths (relative to workspace root) that cannot be written, edited, or deleted by the agent.
+   * Supports exact file paths (e.g. "AGENTS.md") and directory prefixes (e.g. "knowledge/company/").
+   * Directory prefixes must end with "/" and protect all files under that directory recursively.
+   * Default: [] (no files protected).
+   */
+  protectedPaths?: string[];
 };
 
 export type AgentToolsConfig = {
