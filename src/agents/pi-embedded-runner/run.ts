@@ -11,6 +11,7 @@ import {
   markAuthProfileFailure,
   markAuthProfileGood,
   markAuthProfileUsed,
+  resolveMaxConsecutiveFailures,
 } from "../auth-profiles.js";
 import {
   CONTEXT_WINDOW_HARD_MIN_TOKENS,
@@ -494,8 +495,10 @@ export async function runEmbeddedPiAgent(
 
       const MAX_OVERFLOW_COMPACTION_ATTEMPTS = 3;
       const MAX_RUN_LOOP_ITERATIONS = resolveMaxRunRetryIterations(profileCandidates.length);
+      const MAX_CONSECUTIVE_PROVIDER_FAILURES = resolveMaxConsecutiveFailures(params.config);
       let overflowCompactionAttempts = 0;
       let toolResultTruncationAttempted = false;
+      let consecutiveProviderFailures = 0;
       const usageAccumulator = createUsageAccumulator();
       let lastRunPromptUsage: ReturnType<typeof normalizeUsage> | undefined;
       let autoCompactionCount = 0;
@@ -981,7 +984,31 @@ export async function runEmbeddedPiAgent(
 
             const rotated = await advanceAuthProfile();
             if (rotated) {
+              consecutiveProviderFailures = 0;
               continue;
+            }
+
+            consecutiveProviderFailures += 1;
+            if (consecutiveProviderFailures >= MAX_CONSECUTIVE_PROVIDER_FAILURES) {
+              const circuitMessage =
+                lastAssistant?.errorMessage?.trim() ||
+                (timedOut
+                  ? "LLM request timed out."
+                  : rateLimitFailure
+                    ? "LLM request rate limited."
+                    : "Provider unavailable.");
+              log.error(
+                `[circuit-breaker] provider=${provider}/${modelId} ` +
+                  `consecutiveFailures=${consecutiveProviderFailures} ` +
+                  `max=${MAX_CONSECUTIVE_PROVIDER_FAILURES} — fast-failing`,
+              );
+              throw new FailoverError(circuitMessage, {
+                reason: assistantFailoverReason ?? "unknown",
+                provider: activeErrorContext.provider,
+                model: activeErrorContext.model,
+                profileId: lastProfileId,
+                status: resolveFailoverStatus(assistantFailoverReason ?? "unknown"),
+              });
             }
 
             if (fallbackConfigured) {

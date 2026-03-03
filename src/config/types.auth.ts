@@ -25,5 +25,13 @@ export type AuthConfig = {
      * this window, counters reset. Default: 24.
      */
     failureWindowHours?: number;
+    /**
+     * Maximum consecutive provider failures (across all profiles) before the
+     * run loop fast-fails instead of continuing to retry. This acts as a
+     * circuit breaker when the provider is fully unavailable, preventing
+     * unbounded retries that accumulate context and inflate token costs.
+     * Default: 3.
+     */
+    maxConsecutiveFailures?: number;
   };
 };

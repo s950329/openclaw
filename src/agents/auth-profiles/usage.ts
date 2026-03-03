@@ -186,6 +186,7 @@ type ResolvedAuthCooldownConfig = {
   billingBackoffMs: number;
   billingMaxMs: number;
   failureWindowMs: number;
+  maxConsecutiveFailures: number;
 };
 
 function resolveAuthCooldownConfig(params: {
@@ -224,11 +225,18 @@ function resolveAuthCooldownConfig(params: {
     cooldowns?.failureWindowHours,
     defaults.failureWindowHours,
   );
+  const maxConsecutiveFailures =
+    typeof cooldowns?.maxConsecutiveFailures === "number" &&
+    Number.isFinite(cooldowns.maxConsecutiveFailures) &&
+    cooldowns.maxConsecutiveFailures >= 1
+      ? Math.round(cooldowns.maxConsecutiveFailures)
+      : 3;
 
   return {
     billingBackoffMs: billingBackoffHours * 60 * 60 * 1000,
     billingMaxMs: billingMaxHours * 60 * 60 * 1000,
     failureWindowMs: failureWindowHours * 60 * 60 * 1000,
+    maxConsecutiveFailures,
   };
 }
 
@@ -424,4 +432,16 @@ export async function clearAuthProfileCooldown(params: {
     failureCounts: undefined,
   };
   saveAuthProfileStore(store, agentDir);
+}
+
+/**
+ * Resolve the configured maximum consecutive provider failures before the
+ * run loop fast-fails (circuit breaker). Exposed for use in the run loop.
+ */
+export function resolveMaxConsecutiveFailures(cfg?: OpenClawConfig): number {
+  const value = cfg?.auth?.cooldowns?.maxConsecutiveFailures;
+  if (typeof value === "number" && Number.isFinite(value) && value >= 1) {
+    return Math.round(value);
+  }
+  return 3;
 }
