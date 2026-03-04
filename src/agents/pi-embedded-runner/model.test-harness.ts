@@ -89,6 +89,48 @@ export function mockGoogleGeminiCliFlashTemplateModel(): void {
   });
 }
 
+export const GOOGLE_FLASH_TEMPLATE_MODEL = {
+  id: "gemini-3-flash-preview",
+  name: "Gemini 3 Flash Preview",
+  provider: "google",
+  api: "google-generative-ai",
+  baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+  reasoning: true,
+  input: ["text", "image"] as const,
+  cost: { input: 0.5, output: 3, cacheRead: 0.05, cacheWrite: 0 },
+  contextWindow: 1048576,
+  maxTokens: 65536,
+};
+
+export function mockGoogleFlashTemplateModel(): void {
+  mockDiscoveredModel({
+    provider: "google",
+    modelId: "gemini-3-flash-preview",
+    templateModel: GOOGLE_FLASH_TEMPLATE_MODEL,
+  });
+}
+
+export const GOOGLE_ANTIGRAVITY_FLASH_TEMPLATE_MODEL = {
+  id: "gemini-3-flash-preview",
+  name: "Gemini 3 Flash Preview",
+  provider: "google-antigravity",
+  api: "google-gemini-cli",
+  baseUrl: "https://cloudcode-pa.googleapis.com",
+  reasoning: false,
+  input: ["text", "image"] as const,
+  cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  contextWindow: 200000,
+  maxTokens: 64000,
+};
+
+export function mockGoogleAntigravityFlashTemplateModel(): void {
+  mockDiscoveredModel({
+    provider: "google-antigravity",
+    modelId: "gemini-3-flash-preview",
+    templateModel: GOOGLE_ANTIGRAVITY_FLASH_TEMPLATE_MODEL,
+  });
+}
+
 export function resetMockDiscoverModels(): void {
   vi.mocked(discoverModels).mockReturnValue({
     find: vi.fn(() => null),

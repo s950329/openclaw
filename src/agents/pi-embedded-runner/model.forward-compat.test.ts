@@ -11,6 +11,8 @@ import {
   GOOGLE_GEMINI_CLI_FLASH_TEMPLATE_MODEL,
   GOOGLE_GEMINI_CLI_PRO_TEMPLATE_MODEL,
   makeModel,
+  mockGoogleAntigravityFlashTemplateModel,
+  mockGoogleFlashTemplateModel,
   mockGoogleGeminiCliFlashTemplateModel,
   mockGoogleGeminiCliProTemplateModel,
   mockOpenAICodexTemplateModel,
@@ -77,6 +79,47 @@ describe("pi embedded model e2e smoke", () => {
       ...GOOGLE_GEMINI_CLI_FLASH_TEMPLATE_MODEL,
       id: "gemini-3.1-flash-preview",
       name: "gemini-3.1-flash-preview",
+      reasoning: true,
+    });
+  });
+
+  it("builds a google-gemini-cli forward-compat fallback for gemini-3.1-flash-lite-preview", () => {
+    mockGoogleGeminiCliFlashTemplateModel();
+
+    const result = resolveModel("google-gemini-cli", "gemini-3.1-flash-lite-preview", "/tmp/agent");
+    expect(result.error).toBeUndefined();
+    expect(result.model).toMatchObject({
+      ...GOOGLE_GEMINI_CLI_FLASH_TEMPLATE_MODEL,
+      id: "gemini-3.1-flash-lite-preview",
+      name: "gemini-3.1-flash-lite-preview",
+      reasoning: true,
+    });
+  });
+
+  it("builds a google forward-compat fallback for gemini-3.1-flash-lite-preview", () => {
+    mockGoogleFlashTemplateModel();
+
+    const result = resolveModel("google", "gemini-3.1-flash-lite-preview", "/tmp/agent");
+    expect(result.error).toBeUndefined();
+    expect(result.model).toMatchObject({
+      id: "gemini-3.1-flash-lite-preview",
+      name: "gemini-3.1-flash-lite-preview",
+      reasoning: true,
+    });
+  });
+
+  it("builds a google-antigravity forward-compat fallback for gemini-3.1-flash-lite-preview", () => {
+    mockGoogleAntigravityFlashTemplateModel();
+
+    const result = resolveModel(
+      "google-antigravity",
+      "gemini-3.1-flash-lite-preview",
+      "/tmp/agent",
+    );
+    expect(result.error).toBeUndefined();
+    expect(result.model).toMatchObject({
+      id: "gemini-3.1-flash-lite-preview",
+      name: "gemini-3.1-flash-lite-preview",
       reasoning: true,
     });
   });
