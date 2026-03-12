@@ -191,15 +191,47 @@ describe("resolveMedia getFile retry", () => {
     },
   );
 
-  it("does not catch errors from fetchRemoteMedia (only getFile is retried)", async () => {
+  it("retries fetchRemoteMedia on transient failure and succeeds on second attempt", async () => {
     const getFile = vi.fn().mockResolvedValue({ file_path: "voice/file_0.oga" });
-    fetchRemoteMedia.mockRejectedValueOnce(new Error("download failed"));
+    fetchRemoteMedia.mockRejectedValueOnce(new Error("network error")).mockResolvedValueOnce({
+      buffer: Buffer.from("audio"),
+      contentType: "audio/ogg",
+      fileName: "file_0.oga",
+    });
+    saveMediaBuffer.mockResolvedValueOnce({
+      path: "/tmp/file_0.oga",
+      contentType: "audio/ogg",
+    });
 
-    await expect(
-      resolveMedia(makeCtx("voice", getFile), MAX_MEDIA_BYTES, BOT_TOKEN),
-    ).rejects.toThrow("download failed");
+    const promise = resolveMedia(makeCtx("voice", getFile), MAX_MEDIA_BYTES, BOT_TOKEN);
+    await flushRetryTimers();
+    const result = await promise;
 
-    expect(getFile).toHaveBeenCalledTimes(1);
+    expect(fetchRemoteMedia).toHaveBeenCalledTimes(2);
+    expect(result).toEqual(expect.objectContaining({ path: "/tmp/file_0.oga" }));
+  });
+
+  it("retries fetchRemoteMedia on transient failure and succeeds on third attempt", async () => {
+    const getFile = vi.fn().mockResolvedValue({ file_path: "voice/file_0.oga" });
+    fetchRemoteMedia
+      .mockRejectedValueOnce(new Error("network error"))
+      .mockRejectedValueOnce(new Error("network error"))
+      .mockResolvedValueOnce({
+        buffer: Buffer.from("audio"),
+        contentType: "audio/ogg",
+        fileName: "file_0.oga",
+      });
+    saveMediaBuffer.mockResolvedValueOnce({
+      path: "/tmp/file_0.oga",
+      contentType: "audio/ogg",
+    });
+
+    const promise = resolveMedia(makeCtx("voice", getFile), MAX_MEDIA_BYTES, BOT_TOKEN);
+    await flushRetryTimers();
+    const result = await promise;
+
+    expect(fetchRemoteMedia).toHaveBeenCalledTimes(3);
+    expect(result).toEqual(expect.objectContaining({ path: "/tmp/file_0.oga" }));
   });
 
   it("does not retry 'file is too big' error (400 Bad Request) and returns null", async () => {
